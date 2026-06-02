@@ -13,8 +13,10 @@
  */
 package io.trino.plugin.iceberg.catalog.rest;
 
+import io.trino.filesystem.s3.S3CredentialsProviderRegistry;
 import org.apache.iceberg.rest.credentials.Credential;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +33,14 @@ final class S3VendedCredentialsProvider
     // Copy org.apache.iceberg.aws.s3.S3FileIOProperties.SESSION_TOKEN_EXPIRES_AT_MS because the apache/iceberg constant is package-private
     static final String SESSION_TOKEN_EXPIRES_AT_MS = "s3.session-token-expires-at-ms";
 
+    private final software.amazon.awssdk.auth.credentials.AwsCredentialsProvider awsCredentialsProvider = () -> {
+        S3VendedCredentials credentials = getCredentials();
+        return software.amazon.awssdk.auth.credentials.AwsSessionCredentials.create(
+                credentials.accessKey(),
+                credentials.secretKey(),
+                credentials.sessionToken());
+    };
+
     S3VendedCredentialsProvider(
             Map<String, String> catalogProperties,
             Map<String, String> fileIoProperties)
@@ -40,6 +50,16 @@ final class S3VendedCredentialsProvider
                 parseBoolean(fileIoProperties, REFRESH_CREDENTIALS_ENABLED, true),
                 Optional.ofNullable(fileIoProperties.get(REFRESH_CREDENTIALS_ENDPOINT)),
                 createVendedCredentials(fileIoProperties));
+
+        S3CredentialsProviderRegistry.getInstance().register(super.getCredentials().refreshKey(), awsCredentialsProvider);
+    }
+
+    @Override
+    public S3VendedCredentials getCredentials()
+    {
+        S3VendedCredentials credentials = super.getCredentials();
+        S3CredentialsProviderRegistry.getInstance().register(credentials.refreshKey(), awsCredentialsProvider);
+        return credentials;
     }
 
     @Override
@@ -58,10 +78,25 @@ final class S3VendedCredentialsProvider
 
     public static S3VendedCredentials createVendedCredentials(Map<String, String> fileIoProperties)
     {
+        Optional<Instant> expirationTime = parseInstantEpochMillis(fileIoProperties, SESSION_TOKEN_EXPIRES_AT_MS);
         return new S3VendedCredentials(
                 fileIoProperties.get(ACCESS_KEY_ID),
                 fileIoProperties.get(SECRET_ACCESS_KEY),
                 fileIoProperties.get(SESSION_TOKEN),
-                parseInstantEpochMillis(fileIoProperties, SESSION_TOKEN_EXPIRES_AT_MS));
+                expirationTime,
+                createRefreshKey(
+                        fileIoProperties.get(ACCESS_KEY_ID),
+                        fileIoProperties.get(SECRET_ACCESS_KEY),
+                        fileIoProperties.get(SESSION_TOKEN),
+                        expirationTime));
+    }
+
+    static String createRefreshKey(String accessKey, String secretKey, String sessionToken, Optional<Instant> expirationTime)
+    {
+        return String.join("|",
+                accessKey,
+                secretKey,
+                sessionToken,
+                expirationTime.map(instant -> Long.toString(instant.toEpochMilli())).orElse(""));
     }
 }

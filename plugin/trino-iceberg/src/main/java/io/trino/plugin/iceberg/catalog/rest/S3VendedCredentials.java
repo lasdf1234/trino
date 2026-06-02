@@ -20,11 +20,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY;
+import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_REFRESH_KEY_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
-record S3VendedCredentials(String accessKey, String secretKey, String sessionToken, Optional<Instant> expirationTime)
+record S3VendedCredentials(String accessKey, String secretKey, String sessionToken, Optional<Instant> expirationTime, String refreshKey)
         implements VendedCredentials
 {
     public S3VendedCredentials
@@ -33,6 +34,7 @@ record S3VendedCredentials(String accessKey, String secretKey, String sessionTok
         requireNonNull(secretKey, "secretKey is null");
         requireNonNull(sessionToken, "sessionToken is null");
         requireNonNull(expirationTime, "expirationTime is null");
+        requireNonNull(refreshKey, "refreshKey is null");
     }
 
     @Override
@@ -48,6 +50,7 @@ record S3VendedCredentials(String accessKey, String secretKey, String sessionTok
                 .put(EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY, accessKey)
                 .put(EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY, secretKey)
                 .put(EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY, sessionToken)
+                .put(EXTRA_CREDENTIALS_REFRESH_KEY_PROPERTY, refreshKey)
                 .buildOrThrow();
     }
 }

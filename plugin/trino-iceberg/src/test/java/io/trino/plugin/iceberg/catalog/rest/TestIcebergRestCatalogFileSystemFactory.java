@@ -43,6 +43,7 @@ import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_G
 import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY;
 import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_PROJECT_ID_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY;
+import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_REFRESH_KEY_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +64,8 @@ final class TestIcebergRestCatalogFileSystemFactory
         Map<String, String> fileIoProperties = ImmutableMap.of(
                 S3FileIOProperties.ACCESS_KEY_ID, "test-access-key",
                 S3FileIOProperties.SECRET_ACCESS_KEY, "test-secret-key",
-                S3FileIOProperties.SESSION_TOKEN, "test-session-token");
+                S3FileIOProperties.SESSION_TOKEN, "test-session-token",
+                S3VendedCredentialsProvider.SESSION_TOKEN_EXPIRES_AT_MS, "1700000000000");
 
         factory.create(ConnectorIdentity.ofUser("test"), fileIoProperties).newInputFile(Location.of("s3://bucket/path"));
 
@@ -72,7 +74,8 @@ final class TestIcebergRestCatalogFileSystemFactory
         assertThat(identity.getExtraCredentials())
                 .containsEntry(EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY, "test-access-key")
                 .containsEntry(EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY, "test-secret-key")
-                .containsEntry(EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY, "test-session-token");
+                .containsEntry(EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY, "test-session-token")
+                .containsEntry(EXTRA_CREDENTIALS_REFRESH_KEY_PROPERTY, "test-access-key|test-secret-key|test-session-token|1700000000000");
     }
 
     @Test

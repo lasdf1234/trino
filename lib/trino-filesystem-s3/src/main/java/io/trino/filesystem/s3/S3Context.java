@@ -29,6 +29,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.filesystem.s3.S3FileSystemConfig.S3SseType.CUSTOMER;
 import static io.trino.filesystem.s3.S3FileSystemConfig.S3SseType.KMS;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY;
+import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_REFRESH_KEY_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY;
 import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY;
 import static java.util.Objects.requireNonNull;
@@ -62,6 +63,13 @@ record S3Context(
 
     public S3Context withCredentials(ConnectorIdentity identity)
     {
+        String refreshKey = identity.getExtraCredentials().get(EXTRA_CREDENTIALS_REFRESH_KEY_PROPERTY);
+        if (refreshKey != null) {
+            Optional<AwsCredentialsProvider> credentialsProvider = S3CredentialsProviderRegistry.getInstance().get(refreshKey);
+            if (credentialsProvider.isPresent()) {
+                return withCredentialsProviderOverride(credentialsProvider.orElseThrow());
+            }
+        }
         if (identity.getExtraCredentials().containsKey(EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY)) {
             AwsCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(AwsSessionCredentials.create(
                     identity.getExtraCredentials().get(EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY),
